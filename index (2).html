@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Delper GCCP — 32-Year Ecosystem Simulator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+  :root {
+    --gold:#C9A84C; --gold-dim:#8A6F30; --gold-glow:rgba(201,168,76,0.15);
+    --cyan:#00D4FF; --cyan-dim:#007A94; --cyan-glow:rgba(0,212,255,0.12);
+    --green:#00E87A; --red:#FF4C6A; --orange:#FF9D00; --purple:#A855F7;
+    --bg:#050810; --bg2:#0A0F1E; --bg3:#0F1628;
+    --border:rgba(255,255,255,0.07); --text:#E8EBF4; --muted:#6B7494;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;min-height:100vh;overflow-x:hidden;}
+  #stars{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;
+    background:radial-gradient(ellipse at 20% 50%,rgba(0,60,120,.15) 0%,transparent 60%),
+               radial-gradient(ellipse at 80% 20%,rgba(60,0,120,.10) 0%,transparent 50%);}
+  .wrap{position:relative;z-index:1;max-width:1440px;margin:0 auto;padding:0 24px 80px;}
+
+  /* HEADER */
+  header{padding:36px 0 20px;border-bottom:1px solid var(--border);margin-bottom:32px;}
+  .header-top{display:flex;align-items:center;gap:16px;margin-bottom:6px;}
+  .dpr-badge{background:linear-gradient(135deg,#C9A84C,#8A6F30);color:#000;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:1px;}
+  h1{font-size:clamp(20px,4vw,36px);font-weight:700;letter-spacing:-.5px;
+    background:linear-gradient(90deg,#fff 0%,#C9A84C 60%,#00D4FF 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .subtitle{color:var(--muted);font-size:13px;margin-top:4px;}
+
+  /* SCRUBBER */
+  .scrubber-section{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px 28px;margin-bottom:24px;}
+  .year-display{font-family:'Space Mono',monospace;font-size:clamp(36px,6vw,64px);font-weight:700;color:var(--gold);text-shadow:0 0 40px rgba(201,168,76,.4);line-height:1;transition:color .3s;}
+  .year-phase{font-size:12px;color:var(--cyan);margin-top:4px;font-weight:500;letter-spacing:.5px;min-height:18px;}
+  input[type=range]{-webkit-appearance:none;width:100%;height:6px;background:linear-gradient(90deg,var(--gold) var(--pct,0%),var(--bg3) var(--pct,0%));border-radius:3px;outline:none;cursor:pointer;margin:14px 0 6px;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;background:radial-gradient(circle,#fff 30%,var(--gold) 100%);border-radius:50%;box-shadow:0 0 12px rgba(201,168,76,.6);cursor:pointer;}
+  .scrubber-ticks{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;padding:0 2px;}
+
+  /* GRID */
+  .metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:24px;}
+  .metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden;}
+  .metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:12px 12px 0 0;}
+  .metric-card.gold::before{background:linear-gradient(90deg,var(--gold),transparent);}
+  .metric-card.cyan::before{background:linear-gradient(90deg,var(--cyan),transparent);}
+  .metric-card.green::before{background:linear-gradient(90deg,var(--green),transparent);}
+  .metric-card.orange::before{background:linear-gradient(90deg,var(--orange),transparent);}
+  .metric-card.purple::before{background:linear-gradient(90deg,var(--purple),transparent);}
+  .metric-card.blue::before{background:linear-gradient(90deg,#3b82f6,transparent);}
+  .metric-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+  .metric-value{font-family:'Space Mono',monospace;font-size:clamp(14px,2.2vw,20px);font-weight:700;color:#fff;line-height:1.2;transition:all .3s;}
+  .metric-sub{font-size:10px;color:var(--muted);margin-top:3px;}
+
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:24px;}
+  .three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:24px;}
+  @media(max-width:900px){.two-col,.three-col{grid-template-columns:1fr;}}
+
+  .panel{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:22px;}
+  .panel-title{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+  .panel-title::after{content:'';flex:1;height:1px;background:var(--border);}
+
+  /* SECTION DIVIDER */
+  .section-head{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin:32px 0 14px;display:flex;align-items:center;gap:12px;}
+  .section-head::before,.section-head::after{content:'';flex:1;height:1px;background:var(--border);}
+
+  /* BARS */
+  .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+  .bar-row-label{font-size:11px;color:var(--muted);width:110px;flex-shrink:0;}
+  .bar-track{flex:1;height:7px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.4,0,.2,1);}
+  .bar-val{font-family:'Space Mono',monospace;font-size:11px;color:#fff;width:95px;text-align:right;flex-shrink:0;}
+
+  /* INVESTMENT WATERFALL */
+  .waterfall{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:24px;}
+  @media(max-width:900px){.waterfall{grid-template-columns:1fr;}}
+
+  .wf-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;}
+  .wf-title{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+  .wf-title::after{content:'';flex:1;height:1px;background:var(--border);}
+
+  .phase-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04);}
+  .phase-row:last-child{border-bottom:none;}
+  .phase-left{display:flex;align-items:center;gap:10px;}
+  .phase-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .phase-name{font-size:12px;}
+  .phase-years{font-size:10px;color:var(--muted);}
+  .phase-amt{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;text-align:right;}
+  .phase-status{font-size:9px;padding:2px 6px;border-radius:3px;margin-left:6px;font-weight:600;letter-spacing:.5px;}
+  .status-done{background:rgba(0,232,122,.12);color:var(--green);}
+  .status-active{background:rgba(201,168,76,.15);color:var(--gold);}
+  .status-future{background:rgba(107,116,148,.15);color:var(--muted);}
+
+  /* SURPLUS GAUGE */
+  .surplus-gauge{text-align:center;padding:8px 0 16px;}
+  .surplus-num{font-family:'Space Mono',monospace;font-size:clamp(26px,4vw,44px);font-weight:700;transition:all .3s;}
+  .surplus-positive{background:linear-gradient(135deg,var(--green),#00ff99);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .surplus-negative{background:linear-gradient(135deg,var(--red),#ff8888);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .surplus-label{font-size:11px;color:var(--muted);margin-top:4px;}
+
+  .roi-badge{display:inline-block;padding:4px 14px;border-radius:20px;font-family:'Space Mono',monospace;font-size:13px;font-weight:700;margin-top:8px;}
+  .roi-pos{background:rgba(0,232,122,.12);color:var(--green);border:1px solid rgba(0,232,122,.2);}
+  .roi-neg{background:rgba(255,76,106,.12);color:var(--red);border:1px solid rgba(255,76,106,.2);}
+
+  /* STACK CHART */
+  .stack-chart{height:200px;display:flex;align-items:flex-end;gap:4px;padding:0 4px;position:relative;}
+  .stack-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:0;cursor:pointer;}
+  .stack-bar-wrap:hover .stack-seg{filter:brightness(1.2);}
+  .stack-seg{width:100%;transition:height .5s cubic-bezier(.4,0,.2,1);min-height:0;}
+  .stack-x{font-size:9px;color:var(--muted);margin-top:4px;font-family:'Space Mono',monospace;text-align:center;}
+  .stack-x.active-x{color:var(--gold);}
+  .stack-gridline{position:absolute;left:0;right:0;border-top:1px dashed rgba(255,255,255,.05);pointer-events:none;}
+
+  /* CUMULATIVE TABLE */
+  .inv-table{width:100%;border-collapse:collapse;font-size:11px;}
+  .inv-table th{text-align:left;padding:8px 12px;background:var(--bg3);color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:1px;font-weight:500;}
+  .inv-table td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);}
+  .inv-table tr.cur-inv td{background:rgba(201,168,76,.07);}
+  .inv-table tr.cur-inv td:first-child{border-left:2px solid var(--gold);}
+  .inv-table tr:hover td{background:rgba(255,255,255,.02);cursor:pointer;}
+  .pos{color:var(--green);} .neg{color:var(--red);}
+
+  /* POOL VIZ */
+  .pool-viz{position:relative;height:160px;background:var(--bg3);border-radius:8px;overflow:hidden;margin-top:10px;}
+  .pool-fill{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(0deg,rgba(0,212,255,.3),rgba(0,212,255,.05));border-top:2px solid var(--cyan);transition:height .8s cubic-bezier(.4,0,.2,1);}
+  .pool-label-inside{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:var(--cyan);text-shadow:0 0 20px rgba(0,212,255,.5);pointer-events:none;}
+  .pool-label-top{position:absolute;top:8px;left:0;right:0;text-align:center;font-size:10px;color:var(--muted);pointer-events:none;}
+
+  /* EV BAR */
+  .ev-gauge{text-align:center;padding:8px 0;}
+  .ev-number{font-family:'Space Mono',monospace;font-size:clamp(24px,4vw,40px);font-weight:700;background:linear-gradient(135deg,var(--gold),#fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;transition:all .3s;}
+  .ev-progress{height:7px;background:var(--bg3);border-radius:4px;margin:12px 0 4px;overflow:hidden;}
+  .ev-bar{height:100%;background:linear-gradient(90deg,var(--gold-dim),var(--gold),#fff);border-radius:4px;transition:width .6s cubic-bezier(.4,0,.2,1);}
+
+  /* STREAMS */
+  .stream-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);}
+  .stream-item:last-child{border-bottom:none;}
+  .stream-name{font-size:11px;color:var(--muted);}
+  .stream-active{color:var(--text);}
+  .stream-val{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;}
+  .stream-badge{font-size:9px;padding:2px 5px;border-radius:3px;background:rgba(0,232,122,.15);color:var(--green);font-weight:600;letter-spacing:.5px;display:inline-block;margin-left:5px;}
+  .stream-badge.off{background:rgba(107,116,148,.2);color:var(--muted);}
+
+  /* MILESTONES */
+  .milestone-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);}
+  .milestone-row:last-child{border-bottom:none;}
+  .ms-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;background:var(--muted);transition:background .3s,box-shadow .3s;}
+  .ms-dot.reached{background:var(--green);box-shadow:0 0 8px rgba(0,232,122,.5);}
+  .ms-dot.current{background:var(--gold);box-shadow:0 0 12px rgba(201,168,76,.7);animation:pulse 1.5s infinite;}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.4)}}
+  .ms-year{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);width:46px;flex-shrink:0;}
+  .ms-text{font-size:11px;color:var(--muted);transition:color .3s;}
+  .ms-text.reached{color:var(--text);}
+  .ms-text.current{color:var(--gold);font-weight:600;}
+
+  /* TIMELINE TABLE */
+  .tl-body{background:var(--bg2);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;overflow:hidden;}
+  .tl-table{width:100%;border-collapse:collapse;font-size:11px;}
+  .tl-table th{text-align:left;padding:9px 12px;background:var(--bg3);color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:1px;font-weight:500;}
+  .tl-table td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);}
+  .tl-table tr.current-row td{background:rgba(201,168,76,.08);}
+  .tl-table tr.current-row td:first-child{border-left:2px solid var(--gold);}
+  .tl-table tr:hover td{background:rgba(255,255,255,.03);cursor:pointer;}
+  .mono{font-family:'Space Mono',monospace;}
+
+  .disclaimer{margin-top:40px;padding:14px 18px;background:rgba(255,76,106,.05);border:1px solid rgba(255,76,106,.15);border-radius:8px;font-size:10px;color:var(--muted);line-height:1.6;}
+  .disclaimer strong{color:var(--red);}
+  .legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;}
+</style>
+</head>
+<body>
+<div id="stars"></div>
+<div class="wrap">
+
+<!-- HEADER -->
+<header>
+  <div class="header-top">
+    <span class="dpr-badge">DPR</span>
+    <h1>Delper GCCP — Ecosystem Simulator</h1>
+  </div>
+  <div class="subtitle">10× Intelligence Master Programme v9.0 · 1.98T DPR · 2B Users · 46 Countries · GK Bharta · June 2026</div>
+</header>
+
+<!-- SCRUBBER -->
+<div class="scrubber-section">
+  <div style="display:flex;gap:36px;align-items:flex-start;flex-wrap:wrap;">
+    <div>
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Programme Year</div>
+      <div class="year-display" id="yearDisplay">Y1</div>
+      <div class="year-phase" id="yearPhase"></div>
+    </div>
+    <div style="flex:1;min-width:260px;">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;">
+        <span>Drag to navigate 32-year journey</span>
+        <span id="calYear">2026</span>
+      </div>
+      <input type="range" id="scrubber" min="0" max="32" step="1" value="1">
+      <div class="scrubber-ticks"><span>Seed</span><span>Y5</span><span>Y10</span><span>Y15</span><span>Y20</span><span>Y25</span><span>Y32</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOP KPI CARDS -->
+<div class="metrics-grid">
+  <div class="metric-card gold"><div class="metric-label">Programme EV</div><div class="metric-value" id="ev">—</div><div class="metric-sub" id="evSub">—</div></div>
+  <div class="metric-card cyan"><div class="metric-label">Trust Liquid Pool</div><div class="metric-value" id="pool">—</div><div class="metric-sub">Cumulative · Irrevocable</div></div>
+  <div class="metric-card green"><div class="metric-label">Annual Revenue</div><div class="metric-value" id="revenue">—</div><div class="metric-sub" id="revSub">—</div></div>
+  <div class="metric-card orange"><div class="metric-label">DPR Token Price</div><div class="metric-value" id="dprPrice">—</div><div class="metric-sub">1.98T Supply · Fixed Forever</div></div>
+  <div class="metric-card purple"><div class="metric-label">Active Users</div><div class="metric-value" id="users">—</div><div class="metric-sub" id="userSub">—</div></div>
+  <div class="metric-card blue"><div class="metric-label">Collateral Value (1.5T DPR)</div><div class="metric-value" id="collateral">—</div><div class="metric-sub">GK Bharta · Never Sold</div></div>
+</div>
+
+<!-- EV PROGRESS + POOL -->
+<div class="two-col">
+  <div class="panel">
+    <div class="panel-title">Terminal EV Progress</div>
+    <div class="ev-gauge">
+      <div class="ev-number" id="evBig">—</div>
+      <div style="font-size:10px;color:var(--muted);">of $1,137Q+ Grand Total Target</div>
+      <div class="ev-progress"><div class="ev-bar" id="evBar" style="width:.05%"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);"><span>$198T</span><span id="evPct">—</span><span>$1,137Q</span></div>
+    </div>
+    <div style="margin-top:14px;">
+      <div class="bar-row"><div class="bar-row-label">Core EV</div><div class="bar-track"><div class="bar-fill" id="b1" style="width:0%;background:var(--gold)"></div></div><div class="bar-val" id="bv1">—</div></div>
+      <div class="bar-row"><div class="bar-row-label">DPR Fee EV</div><div class="bar-track"><div class="bar-fill" id="b2" style="width:0%;background:var(--cyan)"></div></div><div class="bar-val" id="bv2">—</div></div>
+      <div class="bar-row"><div class="bar-row-label">Collateral EV</div><div class="bar-track"><div class="bar-fill" id="b3" style="width:0%;background:var(--purple)"></div></div><div class="bar-val" id="bv3">—</div></div>
+      <div class="bar-row"><div class="bar-row-label">Off-GDP Layer</div><div class="bar-track"><div class="bar-fill" id="b4" style="width:0%;background:var(--green)"></div></div><div class="bar-val" id="bv4">—</div></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">Trust Liquid Pool Depth</div>
+    <div class="pool-viz">
+      <div class="pool-fill" id="poolFill" style="height:1%"></div>
+      <div class="pool-label-top">Terminal $18.6T (Year 32)</div>
+      <div class="pool-label-inside" id="poolLabel">—</div>
+    </div>
+    <div style="margin-top:10px;display:flex;justify-content:space-between;font-size:10px;color:var(--muted);">
+      <span>Seed: $5M</span><span id="poolInflow">—</span><span>Max: $18.6T</span>
+    </div>
+    <div style="margin-top:10px;font-size:10px;color:var(--muted);line-height:1.7;padding:9px;background:var(--bg3);border-radius:6px;">
+      <span style="color:var(--cyan)">▸ No withdrawals permitted</span> — Trust deed hard-coded into Hyperledger. No person, entity, court or regulatory body may withdraw.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     INVESTMENT SECTION
+     ══════════════════════════════════════════════════════ -->
+<div class="section-head">Investment Capital · Profit Reinvestment · Surplus Analysis</div>
+
+<!-- HEADLINE INVESTMENT KPIs -->
+<div class="metrics-grid" style="margin-bottom:20px;">
+  <div class="metric-card gold"><div class="metric-label">External Capital Required</div><div class="metric-value" id="extCapital">—</div><div class="metric-sub" id="extCapSub">—</div></div>
+  <div class="metric-card green"><div class="metric-label">Cumulative Profit Earned</div><div class="metric-value" id="cumulProfit">—</div><div class="metric-sub" id="cumulProfSub">—</div></div>
+  <div class="metric-card cyan"><div class="metric-label">Profit Reinvested (to date)</div><div class="metric-value" id="profitReinv">—</div><div class="metric-sub" id="reinvSub">—</div></div>
+  <div class="metric-card orange"><div class="metric-label">Total Phase Investment</div><div class="metric-value" id="totalPhaseInv">—</div><div class="metric-sub" id="tpiSub">—</div></div>
+  <div class="metric-card green"><div class="metric-label">Surplus Free Profit</div><div class="metric-value" id="surplusProfit">—</div><div class="metric-sub" id="surplusSub">—</div></div>
+  <div class="metric-card purple"><div class="metric-label">ROI on External Capital</div><div class="metric-value" id="extRoi">—</div><div class="metric-sub">vs $44.7M–$50M seed only</div></div>
+</div>
+
+<!-- WATERFALL: PHASES + SURPLUS GAUGE -->
+<div class="waterfall">
+
+  <!-- LEFT: Phase Investment Waterfall -->
+  <div class="wf-card">
+    <div class="wf-title" style="color:var(--gold);">Phase Investment Schedule
+      <span style="font-size:9px;color:var(--muted);font-weight:400;">Source & Status</span>
+    </div>
+    <div id="phaseRows"></div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:11px;color:var(--muted);">Total Programme Investment</span>
+      <span class="mono" style="font-size:14px;font-weight:700;color:var(--gold);" id="totalInvAmt">—</span>
+    </div>
+    <div style="margin-top:6px;padding:9px;background:var(--bg3);border-radius:6px;font-size:10px;color:var(--muted);line-height:1.6;">
+      <span style="color:var(--orange)">★ Only Phase 0 requires external capital</span> — $44.7M–$50M seed.
+      All subsequent phases self-funded from operating profit reinvestment + IPO/FPO raises.
+    </div>
+  </div>
+
+  <!-- RIGHT: Surplus + ROI Gauge -->
+  <div class="wf-card">
+    <div class="wf-title" style="color:var(--green);">Surplus Profit & ROI Analysis</div>
+    <div class="surplus-gauge">
+      <div class="surplus-num surplus-positive" id="surplusGaugeBig">—</div>
+      <div class="surplus-label">Surplus Free Profit (Cumulative)</div>
+      <div id="roiBadge" class="roi-badge roi-pos" style="margin-top:8px;">— ROI</div>
+    </div>
+    <div style="margin-top:10px;">
+      <div class="bar-row"><div class="bar-row-label">Revenue</div><div class="bar-track"><div class="bar-fill" id="sb1" style="width:100%;background:var(--cyan)"></div></div><div class="bar-val" id="sbv1">—</div></div>
+      <div class="bar-row"><div class="bar-row-label">50% Profit</div><div class="bar-track"><div class="bar-fill" id="sb2" style="width:50%;background:var(--green)"></div></div><div class="bar-val" id="sbv2">—</div></div>
+      <div class="bar-row"><div class="bar-row-label">Reinvested</div><div class="bar-track"><div class="bar-fill" id="sb3" style="width:0%;background:var(--gold)"></div></div><div class="bar-val" id="sbv3">—</div></div>
+      <div class="bar-row"><div class="bar-row-label" style="color:var(--green);font-weight:600;">Surplus</div><div class="bar-track"><div class="bar-fill" id="sb4" style="width:0%;background:var(--green)"></div></div><div class="bar-val pos" id="sbv4">—</div></div>
+    </div>
+    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center;">
+        <div style="font-size:10px;color:var(--muted);">Breakeven</div>
+        <div class="mono" style="font-size:13px;font-weight:700;color:var(--gold);">M9 Day 4</div>
+        <div style="font-size:9px;color:var(--muted);">Seed recovered</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center;">
+        <div style="font-size:10px;color:var(--muted);">Full BEP (50%)</div>
+        <div class="mono" style="font-size:13px;font-weight:700;color:var(--gold);">Y1 D182</div>
+        <div style="font-size:9px;color:var(--muted);">Total investment recovered</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STACKED BAR CHART: Revenue vs Reinvestment vs Surplus -->
+<div class="panel" style="margin-bottom:24px;">
+  <div class="panel-title">Capital Flow — Revenue · Reinvestment · Surplus by Year
+    <span style="font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:4px;">(click bar to jump)</span>
+  </div>
+  <div style="display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap;">
+    <span style="font-size:10px;color:var(--muted);"><span class="legend-dot" style="background:var(--cyan)"></span>Revenue</span>
+    <span style="font-size:10px;color:var(--muted);"><span class="legend-dot" style="background:var(--gold)"></span>Ops Cost</span>
+    <span style="font-size:10px;color:var(--muted);"><span class="legend-dot" style="background:var(--orange)"></span>Phase Reinvestment</span>
+    <span style="font-size:10px;color:var(--muted);"><span class="legend-dot" style="background:var(--green)"></span>Surplus Free Profit</span>
+  </div>
+  <div class="stack-chart" id="stackChart"></div>
+</div>
+
+<!-- FULL YEAR-BY-YEAR INVESTMENT TABLE -->
+<div style="margin-bottom:8px;">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-bottom:none;border-radius:12px 12px 0 0;padding:12px 20px;">
+    <span style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold);">Annual Investment · Reinvestment · Surplus Ledger</span>
+  </div>
+  <div class="tl-body">
+    <div style="overflow-x:auto;">
+      <table class="inv-table" id="invTable">
+        <thead>
+          <tr>
+            <th>Year</th>
+            <th>Annual Revenue</th>
+            <th>50% Profit</th>
+            <th>Ops Cost</th>
+            <th>Phase Inv.</th>
+            <th>IPO/FPO Raise</th>
+            <th>Profit Reinvested</th>
+            <th>Surplus Profit</th>
+            <th>Cumul. Surplus</th>
+            <th>ROI %</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody id="invBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- REVENUE STREAMS + MILESTONES -->
+<div class="two-col" style="margin-top:24px;">
+  <div class="panel">
+    <div class="panel-title">Revenue Streams</div>
+    <div id="streams"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">Programme Milestones</div>
+    <div id="milestones"></div>
+  </div>
+</div>
+
+<!-- FULL JOURNEY TABLE -->
+<div style="margin-top:24px;">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-bottom:none;border-radius:12px 12px 0 0;padding:12px 20px;">
+    <span style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold);">Full 32-Year Transaction Journey</span>
+  </div>
+  <div class="tl-body">
+    <div style="overflow-x:auto;">
+      <table class="tl-table">
+        <thead><tr><th>Period</th><th>Users</th><th>Annual Revenue</th><th>Daily Profit(50%)</th><th>DPR Fee Rev</th><th>Pool Balance</th><th>DPR Price</th><th>EV</th><th>Phase</th></tr></thead>
+        <tbody id="journeyBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="disclaimer">
+  <strong>⚠ SIMULATION ONLY — NOT INVESTMENT ADVICE.</strong> All figures derived from Delper GCCP Master Programme v9.0. Projections are illustrative forward-looking scenarios, not guarantees. DPR token not registered with any securities regulator. No public offer or solicitation is made. No agreement with Anthropic PBC or any AI corporate exists as of June 2026. Seek independent professional advice before any decision.
+</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════
+const TERMINAL_EV = 1137e15;
+
+const milestones = [
+  {y:0, label:'Seed · Trust Pool $5M · KYC begins',         key:'seed'},
+  {y:0, label:'Month 9 · Seed Breakeven · Pool $10M',       key:'m9'},
+  {y:1, label:'Year 1 · 400M users · Pool $24B',            key:'y1'},
+  {y:5, label:'Year 5 · 2B users on-GDP · Pool $288B',      key:'y5'},
+  {y:10,label:'★ Year 10 · Off-GDP ACTIVATES · Pool $1.93T',key:'y10'},
+  {y:12,label:'Year 12 · GIE Launches · Pool $3.82T',       key:'y12'},
+  {y:18,label:'★ Year 18 · 10× TARGET $1.98Q',              key:'y18'},
+  {y:20,label:'Year 20 · FPO 3 · Pool $9.6T',               key:'y20'},
+  {y:32,label:'★ Year 32 · TERMINAL $270Q+ · Pool $18.6T',  key:'y32'},
+];
+
+// Phase definitions from document
+// ext = external capital, selfFund = from profit reinvestment, ipoRaise = from IPO/FPO
+const phases = [
+  {name:'Phase 0 — Seed',  yStart:0, yEnd:1,  totalInv:47.35e6,  ext:47.35e6,   selfFund:0,        ipoRaise:0,       color:'#FF4C6A', label:'EXTERNAL'},
+  {name:'Phase 1 — NFT',   yStart:1, yEnd:4,  totalInv:10.215e9, ext:0,         selfFund:215e6,    ipoRaise:10e9,    color:'#FF9D00', label:'SELF-FUNDED'},
+  {name:'Phase 2 — IPO',   yStart:4, yEnd:10, totalInv:19e9,     ext:0,         selfFund:3.8e9,    ipoRaise:15.2e9,  color:'#C9A84C', label:'SELF-FUNDED'},
+  {name:'Phase 3 — FPO 1–5',yStart:10,yEnd:20,totalInv:85e9,    ext:0,         selfFund:85e9,     ipoRaise:0,       color:'#00D4FF', label:'SELF-FUNDED'},
+  {name:'Phase 4 — FPO 6–11',yStart:20,yEnd:32,totalInv:385e9,  ext:0,         selfFund:200e9,    ipoRaise:185e9,   color:'#A855F7', label:'SELF-FUNDED'},
+];
+
+// Per-year data — y, users_M, rev, daily50, fee, pool, price, ev
+// Added: opsCost, phaseInv, ipoRaise, profitReinvested
+const yearData = [
+  {y:0,  users:0,    rev:0,          daily:0,         fee:0,        pool:5e6,     price:100,    ev:198e12,   opsCost:44.8e6,   phaseInv:47.35e6,  ipoRaise:0,      profitReinv:0,    phase:'Seed · Compliance · KYC · MCP Build'},
+  {y:1,  users:400,  rev:8.49e12,    daily:11.64e9,   fee:24e9,     pool:24e9,    price:150,    ev:297e12,   opsCost:4.245e12, phaseInv:215e6,    ipoRaise:10e9,   profitReinv:215e6, phase:'Revenue Ramp · 400M Users'},
+  {y:2,  users:800,  rev:16.99e12,   daily:23.27e9,   fee:48e9,     pool:72e9,    price:200,    ev:396e12,   opsCost:8.495e12, phaseInv:0,        ipoRaise:0,      profitReinv:0,    phase:'Full Baseline · 800M Users'},
+  {y:3,  users:1200, rev:16.99e12,   daily:23.27e9,   fee:72e9,     pool:120e9,   price:260,    ev:515e12,   opsCost:8.495e12, phaseInv:0,        ipoRaise:0,      profitReinv:0,    phase:'KYC Scaling · 1.2B Users'},
+  {y:4,  users:1600, rev:16.99e12,   daily:23.27e9,   fee:96e9,     pool:168e9,   price:310,    ev:614e12,   opsCost:8.495e12, phaseInv:3.17e9,   ipoRaise:15.2e9, profitReinv:3.17e9,phase:'IPO Phase · NFT Layer Live'},
+  {y:5,  users:2000, rev:16.99e12,   daily:23.27e9,   fee:120e9,    pool:288e9,   price:416.67, ev:825e12,   opsCost:8.495e12, phaseInv:3.17e9,   ipoRaise:0,      profitReinv:3.17e9,phase:'2B Users On-GDP · SC Graph Live'},
+  {y:6,  users:2000, rev:16.99e12,   daily:23.27e9,   fee:120e9,    pool:288e9,   price:416.67, ev:825e12,   opsCost:8.495e12, phaseInv:3.17e9,   ipoRaise:0,      profitReinv:3.17e9,phase:'IPO Roadshow · Intelligence Depth 7/10'},
+  {y:7,  users:2000, rev:16.99e12,   daily:23.27e9,   fee:120e9,    pool:288e9,   price:416.67, ev:825e12,   opsCost:8.495e12, phaseInv:3.17e9,   ipoRaise:0,      profitReinv:3.17e9,phase:'AGI JV · Data Licensing Beta'},
+  {y:8,  users:2000, rev:16.99e12,   daily:23.27e9,   fee:120e9,    pool:360e9,   price:500,    ev:990e12,   opsCost:8.495e12, phaseInv:3.17e9,   ipoRaise:0,      profitReinv:3.17e9,phase:'Global Intelligence Exchange Prep'},
+  {y:9,  users:2000, rev:16.99e12,   daily:23.27e9,   fee:120e9,    pool:408e9,   price:550,    ev:1.089e15, opsCost:8.495e12, phaseInv:3.17e9,   ipoRaise:0,      profitReinv:3.17e9,phase:'Pre Off-GDP · Intelligence Score 8.5/10'},
+  {y:10, users:2000, rev:156.99e12,  daily:215.05e9,  fee:1.52e12,  pool:1.93e12, price:4125,   ev:8.168e15, opsCost:78.495e12,phaseInv:8.5e9,    ipoRaise:0,      profitReinv:8.5e9, phase:'★ OFF-GDP ACTIVATED · $140T Pipeline'},
+  {y:11, users:2000, rev:166.99e12,  daily:228.75e9,  fee:1.7e12,   pool:2.8e12,  price:5000,   ev:9.9e15,   opsCost:83.495e12,phaseInv:8.5e9,    ipoRaise:0,      profitReinv:8.5e9, phase:'Off-GDP Scaling · City OS Integration'},
+  {y:12, users:2000, rev:176.99e12,  daily:242.45e9,  fee:1.89e12,  pool:3.82e12, price:6000,   ev:11.88e15, opsCost:88.495e12,phaseInv:8.5e9,    ipoRaise:0,      profitReinv:8.5e9, phase:'★ GIE LAUNCH · AI Intelligence Suite Live'},
+  {y:13, users:2000, rev:177.5e12,   daily:243.15e9,  fee:1.9e12,   pool:5.0e12,  price:7000,   ev:13.86e15, opsCost:88.75e12, phaseInv:8.5e9,    ipoRaise:0,      profitReinv:8.5e9, phase:'Smart City OS Licensing · 800 Cities'},
+  {y:14, users:2000, rev:178e12,     daily:243.83e9,  fee:1.9e12,   pool:5.5e12,  price:8000,   ev:15.84e15, opsCost:89e12,    phaseInv:8.5e9,    ipoRaise:0,      profitReinv:8.5e9, phase:'2,200 Cities · Quantum Architecture Prep'},
+  {y:15, users:2000, rev:178e12,     daily:243.83e9,  fee:1.9e12,   pool:6.0e12,  price:9000,   ev:17.82e15, opsCost:89e12,    phaseInv:8.5e9,    ipoRaise:0,      profitReinv:8.5e9, phase:'Health Intelligence · MIaaS Global'},
+  {y:16, users:2000, rev:178.14e12,  daily:244.03e9,  fee:1.9e12,   pool:5.7e12,  price:40000,  ev:79.2e15,  opsCost:89.07e12, phaseInv:8.5e9,    ipoRaise:0,      profitReinv:8.5e9, phase:'Smart City OS · Intelligence Score 9/10'},
+  {y:17, users:2000, rev:180e12,     daily:246.58e9,  fee:1.93e12,  pool:6.7e12,  price:50000,  ev:99e15,    opsCost:90e12,    phaseInv:8.5e9,    ipoRaise:0,      profitReinv:8.5e9, phase:'Quantum QIaaS Beta · Off-GDP Mature'},
+  {y:18, users:2000, rev:181e12,     daily:247.95e9,  fee:1.93e12,  pool:7.65e12, price:1000,   ev:1.98e18,  opsCost:90.5e12,  phaseInv:8.5e9,    ipoRaise:0,      profitReinv:8.5e9, phase:'★ 10× TARGET ACHIEVED — $1.98Q EV'},
+  {y:19, users:2000, rev:181e12,     daily:247.95e9,  fee:1.93e12,  pool:8.6e12,  price:20000,  ev:39.6e15,  opsCost:90.5e12,  phaseInv:32.08e9,  ipoRaise:0,      profitReinv:32.08e9,phase:'FPO 2 · Reserve Currency Status'},
+  {y:20, users:2000, rev:181e12,     daily:247.95e9,  fee:1.93e12,  pool:9.6e12,  price:30000,  ev:59.4e15,  opsCost:90.5e12,  phaseInv:32.08e9,  ipoRaise:185e9,  profitReinv:32.08e9,phase:'FPO 3 · USD Reserve $71.2T'},
+  {y:21, users:2000, rev:181e12,     daily:247.95e9,  fee:1.93e12,  pool:10.5e12, price:40000,  ev:79.2e15,  opsCost:90.5e12,  phaseInv:32.08e9,  ipoRaise:0,      profitReinv:32.08e9,phase:'Sovereign Reserve Adoption · AGI'},
+  {y:22, users:2000, rev:181e12,     daily:247.95e9,  fee:1.93e12,  pool:11.0e12, price:60000,  ev:118.8e15, opsCost:90.5e12,  phaseInv:32.08e9,  ipoRaise:0,      profitReinv:32.08e9,phase:'Quantum Intelligence · Global OS'},
+  {y:23, users:2000, rev:181e12,     daily:247.95e9,  fee:1.93e12,  pool:11.5e12, price:80000,  ev:158.4e15, opsCost:90.5e12,  phaseInv:32.08e9,  ipoRaise:0,      profitReinv:32.08e9,phase:'FPO 4 · 10/10 Intelligence Density'},
+  {y:24, users:2000, rev:181e12,     daily:247.95e9,  fee:1.93e12,  pool:12.0e12, price:100000, ev:198e15,   opsCost:90.5e12,  phaseInv:32.08e9,  ipoRaise:0,      profitReinv:32.08e9,phase:'Gold Reserve Integration · AI Supremacy'},
+  {y:25, users:2000, rev:181.04e12,  daily:248e9,     fee:1.93e12,  pool:11.5e12, price:136360, ev:270e15,   opsCost:90.52e12, phaseInv:32.08e9,  ipoRaise:0,      profitReinv:32.08e9,phase:'Health+Q · Off-GDP $700T Matured'},
+  {y:26, users:2000, rev:181.04e12,  daily:248e9,     fee:4e12,     pool:13.5e12, price:200000, ev:396e15,   opsCost:90.52e12, phaseInv:32.08e9,  ipoRaise:0,      profitReinv:32.08e9,phase:'FPO 5 · Compounding Intelligence'},
+  {y:27, users:2000, rev:181.1e12,   daily:248.08e9,  fee:5e12,     pool:15.0e12, price:300000, ev:594e15,   opsCost:90.55e12, phaseInv:32.08e9,  ipoRaise:0,      profitReinv:32.08e9,phase:'FPO 6 · Terminal Approach'},
+  {y:28, users:2000, rev:181.1e12,   daily:248.08e9,  fee:5.5e12,   pool:16.0e12, price:400000, ev:792e15,   opsCost:90.55e12, phaseInv:32.08e9,  ipoRaise:0,      profitReinv:32.08e9,phase:'FPO 7 · Collateral $861Q'},
+  {y:29, users:2000, rev:181.1e12,   daily:248.08e9,  fee:6e12,     pool:16.5e12, price:450000, ev:891e15,   opsCost:90.55e12, phaseInv:32.08e9,  ipoRaise:0,      profitReinv:32.08e9,phase:'FPO 8 · Grand Total Compounding'},
+  {y:30, users:2000, rev:181.1e12,   daily:248.1e9,   fee:6.5e12,   pool:17.0e12, price:500000, ev:990e15,   opsCost:90.55e12, phaseInv:32.08e9,  ipoRaise:0,      profitReinv:32.08e9,phase:'FPO 9 · Treasury Depth $17T'},
+  {y:31, users:2000, rev:181.1e12,   daily:248.1e9,   fee:7e12,     pool:17.8e12, price:550000, ev:1.089e18, opsCost:90.55e12, phaseInv:32.08e9,  ipoRaise:0,      profitReinv:32.08e9,phase:'FPO 10 · Final Intelligence Layer'},
+  {y:32, users:2000, rev:181.14e12,  daily:248.13e9,  fee:7.12e12,  pool:18.6e12, price:574240, ev:270e18,   opsCost:90.57e12, phaseInv:0,        ipoRaise:0,      profitReinv:0,     phase:'★ TERMINAL — $270Q+ · $1,137Q Grand Total'},
+];
+
+const streams = [
+  {name:'DPR Network + City Ops',      activeY:1,  annualRev:16.99e12},
+  {name:'Global Intelligence Exchange',activeY:12, annualRev:20e12},
+  {name:'Smart City OS Licensing',     activeY:16, annualRev:1.15e12},
+  {name:'DPR Reserve Currency',        activeY:18, annualRev:1.3e12},
+  {name:'AI Training Data Licensing',  activeY:3,  annualRev:23e9},
+  {name:'MIaaS',                       activeY:10, annualRev:7.7e9},
+  {name:'Agentic AIaaS',               activeY:8,  annualRev:21e9},
+  {name:'Health Intelligence',         activeY:14, annualRev:37e9},
+  {name:'Quantum QIaaS',               activeY:20, annualRev:100e9},
+  {name:'★ Off-GDP Layer',             activeY:10, annualRev:140e12},
+  {name:'★ DPR Buy Fee → Pool',        activeY:1,  annualRev:3.56e12},
+  {name:'★ DPR Sell Fee → Pool',       activeY:1,  annualRev:3.56e12},
+];
+
+// ═══════════════════════════════════════════
+// DERIVED CALCULATIONS
+// ═══════════════════════════════════════════
+// Compute cumulative investment, profit, reinvestment, surplus for each year
+let cumulExternal = 0, cumulProfit = 0, cumulReinvested = 0, cumulSurplus = 0;
+yearData.forEach(d => {
+  const profit50 = d.rev * 0.5;
+  const surplus = profit50 - d.opsCost - d.profitReinv;
+  d._profit50 = profit50;
+  d._surplus = surplus;
+});
+// running cumulative
+let runExt=0, runProfit=0, runReinv=0, runSurplus=0;
+yearData.forEach(d => {
+  if(d.y===0){ runExt += d.phaseInv; }
+  runProfit += d._profit50;
+  runReinv += d.profitReinv;
+  runSurplus += d._surplus;
+  d._cumulExt = runExt;
+  d._cumulProfit = runProfit;
+  d._cumulReinv = runReinv;
+  d._cumulSurplus = runSurplus;
+});
+
+// ═══════════════════════════════════════════
+// FORMAT
+// ═══════════════════════════════════════════
+function fmt(n){
+  if(n===0) return '$0';
+  const a=Math.abs(n);
+  if(a>=1e18) return '$'+(n/1e18).toFixed(2)+'Q';
+  if(a>=1e15) return '$'+(n/1e15).toFixed(2)+'Q';
+  if(a>=1e12) return '$'+(n/1e12).toFixed(2)+'T';
+  if(a>=1e9)  return '$'+(n/1e9).toFixed(1)+'B';
+  if(a>=1e6)  return '$'+(n/1e6).toFixed(1)+'M';
+  if(a>=1e3)  return '$'+(n/1e3).toFixed(0)+'K';
+  return '$'+n.toFixed(0);
+}
+function fmtUsers(m){ if(m===0) return '—'; if(m>=1000) return (m/1000).toFixed(1)+'B'; return m+'M'; }
+function fmtPrice(p){ if(p>=1e6) return '$'+(p/1e6).toFixed(2)+'M'; if(p>=1e3) return '$'+(p/1e3).toFixed(1)+'K'; return '$'+p.toFixed(2); }
+function fmtPct(n){ if(n===0) return '—'; if(n>10000) return '>10,000%'; return n.toFixed(0)+'%'; }
+
+// ═══════════════════════════════════════════
+// BUILD STATIC / SEMI-STATIC ELEMENTS
+// ═══════════════════════════════════════════
+function buildMilestones(){
+  document.getElementById('milestones').innerHTML = milestones.map(m=>`
+    <div class="milestone-row" id="ms_${m.key}">
+      <div class="ms-dot" id="dot_${m.key}"></div>
+      <div class="ms-year">${m.y===0?'Seed':'Y'+m.y}</div>
+      <div class="ms-text" id="mst_${m.key}">${m.label}</div>
+    </div>`).join('');
+}
+
+function buildJourneyTable(){
+  document.getElementById('journeyBody').innerHTML = yearData.map(d=>`
+    <tr id="row_y${d.y}" onclick="jumpTo(${d.y})">
+      <td class="mono">${d.y===0?'Seed':'Y'+d.y}</td>
+      <td>${fmtUsers(d.users)}</td>
+      <td class="mono">${fmt(d.rev)}</td>
+      <td class="mono">${d.daily>0?fmt(d.daily)+'/d':'—'}</td>
+      <td class="mono">${fmt(d.fee)}</td>
+      <td class="mono">${fmt(d.pool)}</td>
+      <td class="mono">${fmtPrice(d.price)}</td>
+      <td class="mono" style="color:var(--gold)">${fmt(d.ev)}</td>
+      <td style="font-size:10px;color:var(--muted)">${d.phase}</td>
+    </tr>`).join('');
+}
+
+function buildInvTable(){
+  const SEED = 47.35e6;
+  document.getElementById('invBody').innerHTML = yearData.map(d=>{
+    const p50 = d._profit50;
+    const sur = d._surplus;
+    const roi = d.y===0 ? 0 : ((d._cumulSurplus / SEED)*100);
+    const src = d.y===0 ? '<span style="color:var(--red)">External</span>' :
+                d.phaseInv>0 ? '<span style="color:var(--gold)">Reinvest+IPO</span>' :
+                '<span style="color:var(--green)">Self-Funded</span>';
+    return `<tr id="inv_y${d.y}" onclick="jumpTo(${d.y})">
+      <td class="mono">${d.y===0?'Seed':'Y'+d.y}</td>
+      <td class="mono">${fmt(d.rev)}</td>
+      <td class="mono pos">${p50>0?fmt(p50):'—'}</td>
+      <td class="mono">${d.opsCost>0?fmt(d.opsCost):'—'}</td>
+      <td class="mono">${d.phaseInv>0?fmt(d.phaseInv):'—'}</td>
+      <td class="mono">${d.ipoRaise>0?fmt(d.ipoRaise):'—'}</td>
+      <td class="mono" style="color:var(--cyan)">${d.profitReinv>0?fmt(d.profitReinv):'—'}</td>
+      <td class="mono ${sur>=0?'pos':'neg'}">${fmt(sur)}</td>
+      <td class="mono ${d._cumulSurplus>=0?'pos':'neg'}">${fmt(d._cumulSurplus)}</td>
+      <td class="mono ${roi>=0?'pos':'neg'}">${d.y===0?'—':fmtPct(roi)}</td>
+      <td>${src}</td>
+    </tr>`;
+  }).join('');
+}
+
+function buildStackChart(){
+  const el = document.getElementById('stackChart');
+  // Use subset of years for readability
+  const keys = [0,1,2,4,5,8,9,10,12,15,16,18,20,24,25,27,30,32];
+  const subset = yearData.filter(d=>keys.includes(d.y));
+  const maxRev = Math.max(...subset.map(d=>d.rev));
+
+  // Grid lines
+  const gridHTML = [25,50,75].map(pct=>`<div class="stack-gridline" style="bottom:${pct}%"></div>`).join('');
+
+  el.innerHTML = gridHTML + subset.map(d=>{
+    const total = maxRev||1;
+    const revH   = (d.rev/total*100);
+    const opsH   = Math.min(revH, (d.opsCost/total*100));
+    const reinvH = Math.min(revH-opsH, (d.profitReinv/total*100));
+    const surH   = Math.max(0, revH-opsH-reinvH);
+    return `
+      <div class="stack-bar-wrap" onclick="jumpTo(${d.y})">
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;width:100%;">
+          <div class="stack-seg" style="background:var(--green);height:${surH}%"></div>
+          <div class="stack-seg" style="background:var(--orange);height:${reinvH}%"></div>
+          <div class="stack-seg" style="background:var(--gold);opacity:.6;height:${opsH}%"></div>
+        </div>
+        <div class="stack-x" id="sx_${d.y}">${d.y===0?'S':'Y'+d.y}</div>
+      </div>`;
+  }).join('');
+}
+
+function buildStreams(y){
+  document.getElementById('streams').innerHTML = streams.map(s=>{
+    const active = y>=s.activeY;
+    return `<div class="stream-item">
+      <div>
+        <span class="stream-name ${active?'stream-active':''}">${s.name}</span>
+        ${active?'<span class="stream-badge">LIVE</span>':'<span class="stream-badge off">Y'+s.activeY+'</span>'}
+      </div>
+      <div class="stream-val" style="color:${active?'var(--green)':'var(--muted)'}">
+        ${active?fmt(s.annualRev)+'/yr':'—'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function buildPhaseRows(y){
+  document.getElementById('phaseRows').innerHTML = phases.map(p=>{
+    let status, cls;
+    if(y>=p.yEnd){ status='COMPLETE'; cls='status-done'; }
+    else if(y>=p.yStart){ status='ACTIVE'; cls='status-active'; }
+    else { status='Y'+p.yStart; cls='status-future'; }
+    return `<div class="phase-row">
+      <div class="phase-left">
+        <div class="phase-dot" style="background:${p.color}"></div>
+        <div>
+          <div class="phase-name" style="color:${y>=p.yStart?'var(--text)':'var(--muted)'}">${p.name}</div>
+          <div class="phase-years">Y${p.yStart}–Y${p.yEnd} · ${p.ext>0?'<span style=color:var(--red)>Ext: '+fmt(p.ext)+'</span>':'<span style=color:var(--green)>Self-Funded</span>'}${p.ipoRaise>0?' + IPO/FPO: '+fmt(p.ipoRaise):''}</div>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div class="phase-amt" style="color:${p.color}">${fmt(p.totalInv)}</div>
+        <span class="phase-status ${cls}">${status}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+// MAIN UPDATE
+// ═══════════════════════════════════════════
+let currentY=1;
+
+function update(y){
+  currentY=y;
+  const d = yearData[y];
+  const SEED = 47.35e6;
+
+  // Scrubber
+  const pct=(y/32*100).toFixed(1);
+  document.getElementById('scrubber').style.setProperty('--pct',pct+'%');
+  document.getElementById('yearDisplay').textContent = y===0?'SEED':'Y'+y;
+  document.getElementById('yearPhase').textContent = d.phase;
+  document.getElementById('calYear').textContent = 2025+y;
+
+  // Top KPIs
+  const grandEV=(d.ev + d.fee*100 + d.price*1.5e12);
+  document.getElementById('ev').textContent=fmt(d.ev);
+  document.getElementById('evSub').textContent=`${y===0?'Baseline':'Year '+y} · ${fmt(grandEV)} Grand Total`;
+  document.getElementById('pool').textContent=fmt(d.pool);
+  document.getElementById('revenue').textContent=d.rev>0?fmt(d.rev):'$0';
+  document.getElementById('revSub').textContent=d.rev>0?fmt(d.daily)+'/day (50% margin)':'Pre-launch phase';
+  document.getElementById('dprPrice').textContent=fmtPrice(d.price);
+  document.getElementById('users').textContent=fmtUsers(d.users);
+  document.getElementById('userSub').textContent=d.users>0?`${d.users>=2000?'100%':Math.round(d.users/20)+'%'} of 2B target`:'KYC & onboarding';
+  document.getElementById('collateral').textContent=fmt(d.price*1.5e12);
+
+  // EV bars
+  const evPct=Math.min(100,(d.ev/TERMINAL_EV)*100);
+  document.getElementById('evBar').style.width=Math.max(.05,evPct)+'%';
+  document.getElementById('evBig').textContent=fmt(d.ev);
+  document.getElementById('evPct').textContent=evPct<.01?'<0.01%':evPct.toFixed(2)+'%';
+  const tC=270e18,tF=712e18,tCol=204.55e18,tG=14e18;
+  const feeEV=d.fee*100, colEV=d.price*1.5e12, gdpEV=y>=10?d.fee*5:0;
+  document.getElementById('b1').style.width=Math.min(100,d.ev/tC*100)+'%'; document.getElementById('bv1').textContent=fmt(d.ev);
+  document.getElementById('b2').style.width=Math.min(100,feeEV/tF*100)+'%'; document.getElementById('bv2').textContent=feeEV>0?fmt(feeEV):'$0';
+  document.getElementById('b3').style.width=Math.min(100,colEV/tCol*100)+'%'; document.getElementById('bv3').textContent=fmt(colEV);
+  document.getElementById('b4').style.width=Math.min(100,gdpEV/tG*100)+'%'; document.getElementById('bv4').textContent=y>=10?fmt(gdpEV):'Locked Y10';
+
+  // Pool
+  const pp=Math.min(100,(d.pool/18.6e12)*100);
+  document.getElementById('poolFill').style.height=Math.max(1,pp)+'%';
+  document.getElementById('poolLabel').textContent=fmt(d.pool);
+  document.getElementById('poolInflow').textContent='Annual: '+fmt(d.fee);
+
+  // ── INVESTMENT SECTION ──
+  // External capital: only seed in Y0
+  const extUsed = y>=0 ? SEED : 0;
+  document.getElementById('extCapital').textContent = fmt(extUsed);
+  document.getElementById('extCapSub').textContent = y===0 ? 'Phase 0 Seed — only external requirement' : 'Seed only — all subsequent phases self-funded';
+
+  document.getElementById('cumulProfit').textContent = fmt(d._cumulProfit);
+  document.getElementById('cumulProfSub').textContent = y>0 ? fmt(d._profit50)+' this year' : 'Pre-revenue';
+
+  document.getElementById('profitReinv').textContent = fmt(d._cumulReinv);
+  document.getElementById('reinvSub').textContent = d.profitReinv>0 ? fmt(d.profitReinv)+' this year' : 'No reinvestment this year';
+
+  const totalPhInv = phases.reduce((acc,p)=>{ if(y>=p.yStart) acc+=p.totalInv; return acc; },0);
+  document.getElementById('totalPhaseInv').textContent = fmt(totalPhInv);
+  const ipoToDate = phases.reduce((acc,p)=>{ if(y>=p.yStart) acc+=p.ipoRaise; return acc; },0);
+  document.getElementById('tpiSub').textContent = ipoToDate>0 ? 'incl. '+fmt(ipoToDate)+' IPO/FPO raises' : 'From seed only';
+
+  document.getElementById('surplusProfit').textContent = fmt(d._cumulSurplus);
+  document.getElementById('surplusSub').textContent = d._surplus>0 ? fmt(d._surplus)+' free profit this year' : d._surplus<0 ? fmt(Math.abs(d._surplus))+' shortfall' : '—';
+
+  const roi = y===0 ? 0 : (d._cumulSurplus/SEED)*100;
+  document.getElementById('extRoi').textContent = y===0 ? '—' : fmtPct(roi);
+
+  // Surplus gauge
+  document.getElementById('surplusGaugeBig').textContent = fmt(d._cumulSurplus);
+  document.getElementById('surplusGaugeBig').className = 'surplus-num '+(d._cumulSurplus>=0?'surplus-positive':'surplus-negative');
+  const badge = document.getElementById('roiBadge');
+  badge.textContent = y===0 ? '— ROI' : fmtPct(roi)+' ROI';
+  badge.className = 'roi-badge '+(roi>=0?'roi-pos':'roi-neg');
+
+  // Surplus bars
+  const maxVal = Math.max(d.rev, 1);
+  document.getElementById('sb1').style.width=Math.min(100,d.rev/maxVal*100)+'%';    document.getElementById('sbv1').textContent=fmt(d.rev);
+  document.getElementById('sb2').style.width=Math.min(100,d._profit50/maxVal*100)+'%'; document.getElementById('sbv2').textContent=fmt(d._profit50);
+  document.getElementById('sb3').style.width=Math.min(100,d.profitReinv/maxVal*100)+'%'; document.getElementById('sbv3').textContent=d.profitReinv>0?fmt(d.profitReinv):'—';
+  document.getElementById('sb4').style.width=Math.min(100,Math.max(0,d._surplus)/maxVal*100)+'%'; document.getElementById('sbv4').textContent=fmt(d._surplus);
+
+  // Phase rows
+  buildPhaseRows(y);
+
+  // Total investment display
+  document.getElementById('totalInvAmt').textContent = fmt(totalPhInv + extUsed);
+
+  // Streams
+  buildStreams(y);
+
+  // Milestones
+  milestones.forEach(m=>{
+    const dot=document.getElementById('dot_'+m.key);
+    const txt=document.getElementById('mst_'+m.key);
+    if(!dot) return;
+    if(y>m.y){ dot.className='ms-dot reached'; txt.className='ms-text reached'; }
+    else if(y===m.y){ dot.className='ms-dot current'; txt.className='ms-text current'; }
+    else { dot.className='ms-dot'; txt.className='ms-text'; }
+  });
+
+  // Highlight tables
+  yearData.forEach(row=>{
+    const tr=document.getElementById('row_y'+row.y);
+    const ti=document.getElementById('inv_y'+row.y);
+    if(tr) tr.className=row.y===y?'current-row':'';
+    if(ti) ti.className=row.y===y?'cur-inv':'';
+  });
+
+  // Stack chart active bar x-label
+  [0,1,2,4,5,8,9,10,12,15,16,18,20,24,25,27,30,32].forEach(k=>{
+    const el=document.getElementById('sx_'+k);
+    if(el) el.className='stack-x'+(k===y?' active-x':'');
+  });
+}
+
+function jumpTo(y){
+  document.getElementById('scrubber').value=y;
+  update(y);
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+buildMilestones();
+buildJourneyTable();
+buildInvTable();
+buildStackChart();
+update(1);
+
+document.getElementById('scrubber').addEventListener('input',function(){ update(parseInt(this.value)); });
+</script>
+</body>
+</html>
